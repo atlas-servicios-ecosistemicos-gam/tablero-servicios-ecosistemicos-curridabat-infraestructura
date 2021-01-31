@@ -1,0 +1,216 @@
+---
+title: "Servicios ecosistémicos del cantón de Curridabat"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+#-------------------- Paquetes --------------------
+
+library(flexdashboard)
+library(dplyr)
+library(sf)
+library(leaflet)
+library(leafem)
+library(esri2sf)
+library(raster)
+library(plotly)
+
+#--------------- URL de geoservicios y archivos de datos --------------
+
+url_agfs_limite_curridabat <-
+  "https://services9.arcgis.com/RrvMEynxDB8hycVO/arcgis/rest/services/gam_limite_curridabat/FeatureServer/0"
+
+url_raster_infraestructura_natural_gris <-
+  "https://raw.githubusercontent.com/atlas-servicios-ecosistemicos-gam/datos-infraestructura-verde/master/curridabat/IV_CURRIDABAT_INFNATGRIS_WEB.TIF"
+
+#--------------- Objetos sf y raster ---------------
+
+# Límite de Curridabat
+sf_limite_curridabat <- 
+  esri2sf(url_agfs_limite_curridabat)
+
+# Límite de Curridabat (reproyectado a Web Mercator)
+sf_limite_curridabat_web <- 
+  sf_limite_curridabat %>%
+  st_transform(3857)
+
+# Capa raster de infraestructura natural y gris (en Web Mercator)
+raster_infraestructura_natural_gris <-
+  raster(url_raster_infraestructura_natural_gris) %>%
+  crop(sf_limite_curridabat_web) %>%
+  mask(sf_limite_curridabat_web)
+
+#---------------- Paletas de colores ---------------
+
+colores_infraestructura_natural_gris <- 
+  c(rgb(43,99,89,    maxColorValue=255),
+    rgb(204,204,204, maxColorValue=255))
+
+etiquetas_infraestructura_natural_gris <- 
+  c("Natural", 
+    "Gris"
+    )
+
+values_infraestructura_natural_gris <- 
+  c(100,
+    200)
+
+pal_infraestructura_natural_gris <- 
+  colorFactor(
+    palette = colores_infraestructura_natural_gris, 
+    domain = values_infraestructura_natural_gris,
+    na.color = "transparent"
+  )
+
+```
+
+
+Row {data-height=600}
+-----------------------------------------------------------------------
+
+### {data-width=650}
+```{r}
+
+#------------------- Mapa ------------------
+
+leaflet() %>%
+  addProviderTiles(providers$OpenStreetMap.Mapnik, group = "OpenStreetMap") %>%
+  addProviderTiles(providers$Stamen.TonerLite, group = "Stamen Toner Lite") %>%
+  addProviderTiles(providers$CartoDB.DarkMatter, group = "CartoDB Dark Matter") %>%
+  addProviderTiles(providers$Esri.WorldImagery, group = "Imágenes de ESRI") %>%
+  addPolygons(
+    data = sf_limite_curridabat,
+    color = "Purple",
+    fillColor = "transparent",
+    stroke = TRUE,
+    weight = 6.0,
+    group = "Límite de Curridabat"
+  ) %>%
+  addRasterImage(
+    raster_infraestructura_natural_gris,
+    colors = pal_infraestructura_natural_gris,
+    opacity = 1,
+    group = "Infraestructura"
+  ) %>%
+  addLegend(
+    title = "Infraestructura",
+    position = "bottomright",
+    colors = colores_infraestructura_natural_gris,
+    labels = etiquetas_infraestructura_natural_gris,
+    group = "Infraestructura"
+  ) %>%
+  addLayersControl(
+    baseGroups = c("OpenStreetMap", "Stamen Toner Lite", "CartoDB Dark Matter", "Imágenes de ESRI"),
+    overlayGroups = c("Límite de Curridabat", "Infraestructura"),
+    options = layersControlOptions(collapsed = TRUE)    
+  ) %>%  
+  addMiniMap(
+    toggleDisplay = TRUE,
+    position = "bottomleft",
+    minimized = FALSE,
+    tiles = providers$OpenStreetMap.Mapnik
+  ) %>%
+  addScaleBar(
+    position = "bottomleft",
+    options = scaleBarOptions(imperial = FALSE)
+  ) %>%
+  addMouseCoordinates()
+
+```
+
+### {data-width=350}
+```{r}
+
+# Vector de clases de infraestructura
+clases <- c("Infraestructura natural", "Infraestructura gris")
+
+# Vector de valores
+valores <- c(47, 53)
+
+clases_infraestructura <- 
+  data.frame(
+    clase = clases, 
+    valor = valores
+  )
+
+datos <- clases_infraestructura[,c('clase', 'valor')]
+
+fig <- plot_ly(datos, 
+               labels = ~clases, 
+               values = ~valores, 
+               marker = list(
+                 colors = c(
+                   rgb(43,99,89,  maxColorValue=255),
+                   rgb(204,204,204, maxColorValue=255)
+                 )
+               ),
+               type = 'pie')
+
+fig <- fig %>% layout(xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+
+```
+
+Row {data-height=200}
+-----------------------------------------------------------------------
+
+### Vegetación {.value-box} {data-width=143}
+```{r}
+valueBox(
+  value = "47.1 %", 
+  caption = "<h4><strong>% de vegetación</strong></h4><h4><strong>SERVICIO ECOSISTÉMICO DE REGULACIÓN<br>Moderación de extremos del clima</strong></h4>"
+)
+```
+
+### Vegetación ribereña {.value-box} {data-width=143}
+```{r}
+valueBox(
+  value = "6.4 %", 
+  caption = "<h4><strong>% de vegetación ribereña</strong></h4><h4><strong>SERVICIO ECOSISTÉMICO DE SOPORTE<br>Moderación de extremos del clima</strong></h4>"
+)
+```
+
+### Superficie verde por habitante {.value-box} {data-width=143}
+```{r}
+valueBox(
+  value = "42.0 m2/hab", 
+  caption = "<h4><strong>Superficie verde por habitante</strong></h4><h4><strong>SERVICIO ECOSISTÉMICO CULTURAL<br>Beneficios estéticos</strong></h4>"
+)
+```
+
+### Superficie verde pública por habitante {.value-box} {data-width=143}
+```{r}
+valueBox(
+  value = "4.4 m2/hab", 
+  caption = "<h4><strong>Superficie verde por habitante</strong></h4><h4><strong>SERVICIO ECOSISTÉMICO CULTURAL<br>Beneficios estéticos</strong></h4>"
+)
+```
+
+### Densidad de cobertura arbórea {.value-box} {data-width=143}
+```{r}
+valueBox(
+  value = "0.24 cobertura/ha", 
+  caption = "<h4><strong>Densidad de cobertura arbórea</strong></h4><h4><strong>SERVICIO ECOSISTÉMICO DE SOPORTE<br>Hábitat para la biodiversidad</strong></h4>"
+)
+```
+
+### Área natural {.value-box} {data-width=143}
+```{r}
+valueBox(
+  value = "16.7 %", 
+  caption = "<h4><strong>% de área natural</strong></h4><h4><strong>SERVICIO ECOSISTÉMICO DE SOPORTE<br>Hábitat para la biodiversidad</strong></h4>"
+)
+```
+
+### Área semi-natural {.value-box} {data-width=142}
+```{r}
+valueBox(
+  value = "30.6 %", 
+  caption = "<h4><strong>% de área semi-natural</strong></h4><h4><strong>SERVICIO ECOSISTÉMICO DE SOPORTE<br>Hábitat para la biodiversidad</strong></h4>"
+)
+```
