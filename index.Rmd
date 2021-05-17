@@ -13,6 +13,8 @@ library(flexdashboard)
 library(dplyr)
 library(sf)
 library(leaflet)
+library(leaflet.extras)
+library(leaflet.opacity)
 library(leafem)
 library(esri2sf)
 library(raster)
@@ -91,6 +93,7 @@ leaflet() %>%
   ) %>%
   addRasterImage(
     raster_infraestructura_natural_gris,
+    layerId = "raster",    
     colors = pal_infraestructura_natural_gris,
     opacity = 1,
     group = "Infraestructura"
@@ -117,8 +120,10 @@ leaflet() %>%
     position = "bottomleft",
     options = scaleBarOptions(imperial = FALSE)
   ) %>%
-  addMouseCoordinates()
-
+  addMouseCoordinates() %>%
+  addSearchOSM() %>%
+  addResetMapButton() %>%
+  addOpacitySlider(layerId = "raster")
 ```
 
 ### {data-width=350}
